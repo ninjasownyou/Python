@@ -1,0 +1,93 @@
+import random
+
+# The following draws up a 10x10 matrix for the game's internal tracking.
+def getmatrix():
+    global matrix
+    matrix = []
+    for y in range(0,10):
+        matrix.append([])
+        for x in range(0,10):
+            matrix[y].append((x, y))
+# Uncomment to print current game-state
+#for row in matrix:
+#    print(row)
+
+# print(matrix[y][x]) will print the locus (x, y)
+
+# Items located in matrix[y][x] will be replaced with identifiers for battleships, revealed water, etc.
+# Sunk battleships are replaced with same character as revealed water, maybe also add sinking animation?
+
+def draw():
+    for y in range(0,10):
+        drawrow = ""
+        for x in range (0,10):
+            if matrix[y][x] == 'X':
+                drawrow = drawrow + ('X ')
+            elif matrix[y][x] == '.':
+                drawrow = drawrow + ('. ')
+            else:
+                drawrow = drawrow + ('O ')
+        print(drawrow)
+
+def rematch():
+    tysir = input("Would you like to play again? (y/n)")
+    if tysir.lower() == 'y' or tysir.lower() == 'n':
+        if tysir.lower() == 'y':
+            gameflow()
+        else:
+            print("Exiting...")
+    else:
+        print("Invalid input, please try again.")
+        rematch()
+
+class Ship:
+
+    name = None
+    size = None
+    sunk = None
+    position = None
+    # = [(i, j), (i + 1, j), (i + 2, j)]
+    def __init__(self, name, size):
+        self.name = name
+        self.size = size
+        self.sunk = False
+        self.position = []
+        self.place()
+
+    def place(self):
+        global matrix
+        i = random.randrange(0, 10 - self.size + 1)
+        j = random.randrange(0, 10 - self.size + 1)
+        r = random.getrandbits(1)
+        if r % 2 == 0:
+            for y in range(j, j + self.size):
+                if matrix[y][i] != (i, y):
+                    self.place()
+                self.position.append((i, y))
+                matrix[y][i] = "%s" % self.name
+        else:
+            for x in range(i, i + self.size):
+                if matrix[j][x] != (x, j):
+                    self.place()
+                self.position.append((x, j))
+                matrix[x][j] = "%s" % self.name
+
+    def showpos(self):
+        print(self.position)
+
+def gameflow():
+    getmatrix()
+    carr = Ship('Carrier', 5)
+    batl = Ship('Battleship', 4)
+    cruz = Ship('Cruiser', 3)
+    sub = Ship('Submarine', 3)
+    dest = Ship('Destroyer', 2)
+    draw()
+    for row in matrix:
+        print(row)
+    rematch()
+
+gameflow()
+
+for row in matrix:
+    print(row)
