@@ -1,33 +1,40 @@
 import random
+import inspect
 
 # The following draws up a 10x10 matrix for the game's internal tracking.
 def getmatrix():
     global matrix
     matrix = []
+    global columns
+    columns = []
+    for alpha in range(65,75):
+        columns.append(chr(alpha))
     for y in range(0,10):
         matrix.append([])
         for x in range(0,10):
-            matrix[y].append((x, y))
-# Uncomment to print current game-state
-#for row in matrix:
-#    print(row)
-
-# print(matrix[y][x]) will print the locus (x, y)
-
-# Items located in matrix[y][x] will be replaced with identifiers for battleships, revealed water, etc.
-# Sunk battleships are replaced with same character as revealed water, maybe also add sinking animation?
+            matrix[y].append("%s%i" % (columns[x], y))
+# Note that [column][0] == A
+# columns.index(cell[0]) == 1 if cell == "B4", etc
 
 def draw():
     for y in range(0,10):
         drawrow = ""
         for x in range (0,10):
-            if matrix[y][x] == 'X':
-                drawrow = drawrow + ('X ')
+            if matrix[y][x].isalpha() and len(matrix[y][x]) == 1:
+                drawrow = drawrow + matrix[y][x] + (' ')
             elif matrix[y][x] == '.':
                 drawrow = drawrow + ('. ')
             else:
-                drawrow = drawrow + ('O ')
+                drawrow = drawrow + ('? ')
         print(drawrow)
+    print("Turn: %i" % turn)
+
+"""
+After the pieces are placed, the matrix's cell values are either default (empty water, unrevealed), or Ship.name
+(unrevealed). Both are drawn as '?'.
+As the game is played, the matrix's cell values are replaced with either '.' (empty water, revealed), or Ship.symbol
+Both are drawn as-is.
+"""
 
 def rematch():
     tysir = input("Would you like to play again? (y/n)")
@@ -42,52 +49,139 @@ def rematch():
 
 class Ship:
 
-    name = None
-    size = None
-    sunk = None
-    position = None
-    # = [(i, j), (i + 1, j), (i + 2, j)]
-    def __init__(self, name, size):
+    _registry = []
+
+    def __init__(self, name, size, symbol):
         self.name = name
         self.size = size
         self.sunk = False
+        self.symbol = symbol
         self.position = []
-        self.place()
+        self.dmg = []
+        self._registry.append(self)
 
-    def place(self):
+    def findhome(self):
         global matrix
-        i = random.randrange(0, 10 - self.size + 1)
-        j = random.randrange(0, 10 - self.size + 1)
-        r = random.getrandbits(1)
-        if r % 2 == 0:
-            for y in range(j, j + self.size):
-                if matrix[y][i] != (i, y):
-                    self.place()
-                self.position.append((i, y))
-                matrix[y][i] = "%s" % self.name
-        else:
-            for x in range(i, i + self.size):
-                if matrix[j][x] != (x, j):
-                    self.place()
-                self.position.append((x, j))
-                matrix[x][j] = "%s" % self.name
+        global columns
+        while len(self.position) < self.size:
+            i = random.randrange(0, 10 - self.size + 1)
+            j = random.randrange(0, 10 - self.size + 1)
+            # print((columns[i], j))
+            if random.getrandbits(1) == 0:
+                for y in range(j, j + self.size):
+                    if matrix[y][i] == "%s%s" % (columns[i], y):
+                        self.position.append("%s%s" % (columns[i], y))
+                    else:
+                        #print(str(matrix[y][i]) + " is already at (%s%i)! Cannot place %s" % (columns[i], y, self.name))
+                        self.position = []
+                        break
+            else:
+                for x in range(i, i + self.size):
+                    if matrix[j][x] == "%s%s" % (columns[x], j):
+                        self.position.append("%s%s" % (columns[x], j))
+                    else:
+                        #print(str(matrix[j][x]) + " is already at (%s%i)! Cannot place %s" % (columns[x], j, self.name))
+                        self.position = []
+                        break
+        #print("%s's position is %s" % (self.name, str(self.position)))
 
-    def showpos(self):
-        print(self.position)
+    """
+    Selects a point such that if you laid the piece horizontally, moving to the right, or vertically, moving down,
+    it would not go out of bounds. Then a coin is flipped to determine if it's going to be laid along the x or y axis.
+    The corresponding matrix cells are checked for default values, and those loci are added to the position list.
+    If the cell is not a default value, then another ship must be there, so the position list is emptied and
+    the method is repeated.
+    """
+
+    def hit(self, xy):
+        print("You hit their %s!" % self.name)
+        global matrix
+        global columns
+        xl = int(columns.index(xy[0]))
+        yl = int(xy[1])
+        matrix[yl][xl] = self.symbol
+        self.dmg.append((xl, yl))
+        self.position.remove(xy)
+        if self.position == []:
+            self.sink()
+
+    def sink(self):
+        global matrix
+        print("You sunk their %s!" % self.name)
+        for flotsam in self.dmg:
+            matrix[flotsam[1]][flotsam[0]] = '.'
+        self.sunk = True
+
+def gohome(Ship):
+    for cell in Ship.position:
+        # Right now, cell[0] is a letter
+        xi = columns.index(cell[0])
+        matrix[int(cell[1])][xi] = Ship.name
+
+def round():
+    global turn
+    global matrix
+    draw()
+    print("Fire upon which coordinate, Admiral?")
+    move = input().upper()
+    if not (move[0] in columns and move[1].isdigit() and len(move) == 2):
+        print("Your coordinate must be two characters: one letter (A - J) followed by one numeral.")
+        round()
+    else:
+        xl = int(columns.index(move[0]))
+        yl = int(move[1])
+        if matrix[yl][xl] == '.':
+            print("We've already determined that the enemy is not there, Admiral.")
+            round()
+        elif matrix[yl][xl].isalpha() and\
+            len(matrix[yl][xl]) == 1:
+            print("That section of ship is already destroyed, let's pick somewhere else.")
+            round()
+        else:
+            print("Valid coordinates received, firing for effect.")
+            if matrix[yl][xl] == move:
+                print('Miss!')
+                matrix[yl][xl] = '.'
+            else:
+                print('Hit!')
+                for ship in Ship._registry:
+                    if move in ship.position:
+                        ship.hit(move)
+# The following may need to be rearranged across other functions:
+    for ship in Ship._registry:
+        if not ship.sunk:
+            break
+    else:
+        print("You win!")
+    turn += 1
+    round()
 
 def gameflow():
     getmatrix()
-    carr = Ship('Carrier', 5)
-    batl = Ship('Battleship', 4)
-    cruz = Ship('Cruiser', 3)
-    sub = Ship('Submarine', 3)
-    dest = Ship('Destroyer', 2)
-    draw()
-    for row in matrix:
-        print(row)
-    rematch()
+    carr = Ship('Carrier', 5, 'C')
+    carr.findhome()
+    gohome(carr)
+    batl = Ship('Battleship', 4, 'B')
+    batl.findhome()
+    gohome(batl)
+    cruz = Ship('Cruiser', 3, 'u')
+    cruz.findhome()
+    gohome(cruz)
+    sub = Ship('Submarine', 3, 's')
+    sub.findhome()
+    gohome(sub)
+    dest = Ship('Destroyer', 2, 'd')
+    dest.findhome()
+    gohome(dest)
+    global turn
+    turn = 1
+    round()
+    # Add code to store score in text file, then display high score list
 
+def allsunk():
+    # For testing win condition
+    for ship in Ship._registry:
+        ship.sunk = True
+
+turn = 0
 gameflow()
-
-for row in matrix:
-    print(row)
