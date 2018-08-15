@@ -39,9 +39,10 @@ def rematch():
     tysir = input("Would you like to play again? (y/n)")
     if tysir.lower() == 'y' or tysir.lower() == 'n':
         if tysir.lower() == 'y':
-            gameflow()
+            gamesetup()
         else:
-            print("Exiting...")
+            input("Exiting...")
+            sys.exit()
     else:
         print("Invalid input, please try again.")
         rematch()
@@ -63,30 +64,29 @@ class Ship:
         global matrix
         global columns
         while len(self.position) < self.size:
-            i = random.randrange(0, 10 - self.size + 1)
-            j = random.randrange(0, 10 - self.size + 1)
-            # print((columns[i], j))
             if random.getrandbits(1) == 0:
+                i = random.randrange(0, 10)
+                j = random.randrange(0, 10 - self.size + 1)
                 for y in range(j, j + self.size):
                     if matrix[y][i] == "%s%s" % (columns[i], y):
                         self.position.append("%s%s" % (columns[i], y))
                     else:
-                        #print(str(matrix[y][i]) + " is already at (%s%i)! Cannot place %s" % (columns[i], y, self.name))
                         self.position = []
                         break
             else:
+                i = random.randrange(0, 10 - self.size + 1)
+                j = random.randrange(0, 10)
                 for x in range(i, i + self.size):
                     if matrix[j][x] == "%s%s" % (columns[x], j):
                         self.position.append("%s%s" % (columns[x], j))
                     else:
-                        #print(str(matrix[j][x]) + " is already at (%s%i)! Cannot place %s" % (columns[x], j, self.name))
                         self.position = []
                         break
-        #print("%s's position is %s" % (self.name, str(self.position)))
 
     """
-    Selects a point such that if you laid the piece horizontally, moving to the right, or vertically, moving down,
-    it would not go out of bounds. Then a coin is flipped to determine if it's going to be laid along the x or y axis.
+    Flips a coin to determine if it's going to be laid along the x or y axis. Then selects a point such that if you laid
+    the piece horizontally, moving to the right, or vertically, moving down, it would not go out of bounds.
+    If a Carrier (size = 5) is going to be laid vertically, x can be 0-9, but y must be 0-5.
     The corresponding matrix cells are checked for default values, and those loci are added to the position list.
     If the cell is not a default value, then another ship must be there, so the position list is emptied and
     the method is repeated.
@@ -111,11 +111,22 @@ class Ship:
             matrix[flotsam[1]][flotsam[0]] = '.'
         self.sunk = True
 
-def gohome(Ship):
-    for cell in Ship.position:
+    def delete(self):
+        self.name = None
+        self.size = None
+        self.sunk = None
+        self.symbol = None
+        self.position = None
+        self.dmg = None
+        self._registry.remove(self)
+        # For some reason, not all ships will delete, but the game doesn't have a way of interacting with these
+        # ghosts except with debug commands.
+
+def gohome(ship):
+    for cell in ship.position:
         # Right now, cell[0] is a letter
         xi = columns.index(cell[0])
-        matrix[int(cell[1])][xi] = Ship.name
+        matrix[int(cell[1])][xi] = ship.name
 
 def round():
     global turn
@@ -123,6 +134,28 @@ def round():
     draw()
     print("Fire upon which coordinate, Admiral?")
     move = input().upper()
+    # begin debug commands
+    if move == 'SINKALL':
+        for ship in Ship._registry:
+            ship.sunk = True
+        print('Sunk all ships.')
+    if move == 'SHOWMATRIX':
+        for row in matrix:
+            print(row)
+    if move == 'POSITION':
+        for ship in Ship._registry:
+            print(ship.position)
+    if move == 'SUNKSTATE':
+        for ship in Ship._registry:
+            print(ship.sunk)
+    if move == 'DMG':
+        for ship in Ship._registry:
+            print(ship.dmg)
+    if move == 'REGISTRY':
+        print(Ship._registry)
+    if move == 'REGCOUNT':
+        print(len(Ship._registry))
+    # end debug commands
     if not (move[0] in columns and move[1].isdigit() and len(move) == 2):
         print("Your coordinate must be two characters: one letter (A - J) followed by one numeral.")
         round()
@@ -146,16 +179,19 @@ def round():
                 for ship in Ship._registry:
                     if move in ship.position:
                         ship.hit(move)
-# The following may need to be rearranged across other functions:
     for ship in Ship._registry:
         if not ship.sunk:
             break
     else:
+        for ship in Ship._registry:
+            ship.delete()
         print("You win!")
+        # Set high score
+        rematch()
     turn += 1
     round()
 
-def gameflow():
+def gamesetup():
     getmatrix()
     carr = Ship('Carrier', 5, 'C')
     carr.findhome()
@@ -175,11 +211,5 @@ def gameflow():
     global turn
     turn = 1
     round()
-    # Add code to store score in text file, then display high score list
 
-def allsunk():
-    # For testing win condition
-    for ship in Ship._registry:
-        ship.sunk = True
-
-gameflow()
+gamesetup()
