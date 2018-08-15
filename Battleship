@@ -1,5 +1,4 @@
 import random
-import inspect
 
 # The following draws up a 10x10 matrix for the game's internal tracking.
 def getmatrix():
@@ -21,11 +20,11 @@ def draw():
         drawrow = ""
         for x in range (0,10):
             if matrix[y][x].isalpha() and len(matrix[y][x]) == 1:
-                drawrow = drawrow + matrix[y][x] + (' ')
+                drawrow = drawrow + matrix[y][x] + ' '
             elif matrix[y][x] == '.':
-                drawrow = drawrow + ('. ')
+                drawrow = drawrow + '. '
             else:
-                drawrow = drawrow + ('? ')
+                drawrow = drawrow + '? '
         print(drawrow)
     print("Turn: %i" % turn)
 
@@ -183,5 +182,4 @@ def allsunk():
     for ship in Ship._registry:
         ship.sunk = True
 
-turn = 0
 gameflow()
