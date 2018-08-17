@@ -16,17 +16,23 @@ def getmatrix():
 # columns.index(cell[0]) == 1 if cell == "B4", etc
 
 def draw():
+    print()
+    print('  ' + ''.join(' ' + e for e in columns) + ' ')
     for y in range(0,10):
-        drawrow = ""
+        drawrow = ' ' + str(y) + ' '
         for x in range (0,10):
             if matrix[y][x].isalpha() and len(matrix[y][x]) == 1:
                 drawrow = drawrow + matrix[y][x] + ' '
-            elif matrix[y][x] == '.':
-                drawrow = drawrow + '. '
+            elif matrix[y][x] == '≈':
+                drawrow = drawrow + '≈ '
             else:
                 drawrow = drawrow + '? '
         print(drawrow)
+    print()
     print("Turn: %i" % turn)
+
+    # First row: ' A B C...' use columns
+    # Each subsequent row: '0-9' + currentrow
 
 """
 After the pieces are placed, the matrix's cell values are either default (empty water, unrevealed), or Ship.name
@@ -34,18 +40,6 @@ After the pieces are placed, the matrix's cell values are either default (empty 
 As the game is played, the matrix's cell values are replaced with either '.' (empty water, revealed), or Ship.symbol
 Both are drawn as-is.
 """
-
-def rematch():
-    tysir = input("Would you like to play again? (y/n)")
-    if tysir.lower() == 'y' or tysir.lower() == 'n':
-        if tysir.lower() == 'y':
-            gamesetup()
-        else:
-            input("Exiting...")
-            sys.exit()
-    else:
-        print("Invalid input, please try again.")
-        rematch()
 
 class Ship:
 
@@ -61,8 +55,6 @@ class Ship:
         self._registry.append(self)
 
     def findhome(self):
-        global matrix
-        global columns
         while len(self.position) < self.size:
             if random.getrandbits(1) == 0:
                 i = random.randrange(0, 10)
@@ -95,7 +87,6 @@ class Ship:
     def hit(self, xy):
         print("You hit their %s!" % self.name)
         global matrix
-        global columns
         xl = int(columns.index(xy[0]))
         yl = int(xy[1])
         matrix[yl][xl] = self.symbol
@@ -108,7 +99,7 @@ class Ship:
         global matrix
         print("You sunk their %s!" % self.name)
         for flotsam in self.dmg:
-            matrix[flotsam[1]][flotsam[0]] = '.'
+            matrix[flotsam[1]][flotsam[0]] = '≈'
         self.sunk = True
 
     def delete(self):
@@ -127,6 +118,27 @@ def gohome(ship):
         # Right now, cell[0] is a letter
         xi = columns.index(cell[0])
         matrix[int(cell[1])][xi] = ship.name
+
+def gamesetup():
+    getmatrix()
+    carr = Ship('Carrier', 5, 'C')
+    carr.findhome()
+    gohome(carr)
+    batl = Ship('Battleship', 4, 'B')
+    batl.findhome()
+    gohome(batl)
+    cruz = Ship('Cruiser', 3, 'u')
+    cruz.findhome()
+    gohome(cruz)
+    sub = Ship('Submarine', 3, 's')
+    sub.findhome()
+    gohome(sub)
+    dest = Ship('Destroyer', 2, 'd')
+    dest.findhome()
+    gohome(dest)
+    global turn
+    turn = 1
+    round()
 
 def round():
     global turn
@@ -162,7 +174,7 @@ def round():
     else:
         xl = int(columns.index(move[0]))
         yl = int(move[1])
-        if matrix[yl][xl] == '.':
+        if matrix[yl][xl] == '≈':
             print("We've already determined that the enemy is not there, Admiral.")
             round()
         elif matrix[yl][xl].isalpha() and\
@@ -173,7 +185,7 @@ def round():
             print("Valid coordinates received, firing for effect.")
             if matrix[yl][xl] == move:
                 print('Miss!')
-                matrix[yl][xl] = '.'
+                matrix[yl][xl] = '≈'
             else:
                 print('Hit!')
                 for ship in Ship._registry:
@@ -186,30 +198,58 @@ def round():
         for ship in Ship._registry:
             ship.delete()
         print("You win!")
-        # Set high score
+        highscore()
         rematch()
     turn += 1
     round()
 
-def gamesetup():
-    getmatrix()
-    carr = Ship('Carrier', 5, 'C')
-    carr.findhome()
-    gohome(carr)
-    batl = Ship('Battleship', 4, 'B')
-    batl.findhome()
-    gohome(batl)
-    cruz = Ship('Cruiser', 3, 'u')
-    cruz.findhome()
-    gohome(cruz)
-    sub = Ship('Submarine', 3, 's')
-    sub.findhome()
-    gohome(sub)
-    dest = Ship('Destroyer', 2, 'd')
-    dest.findhome()
-    gohome(dest)
-    global turn
-    turn = 1
-    round()
+def rematch():
+    tysir = input("Would you like to play again? (y/n)")
+    if tysir.lower() == 'y' or tysir.lower() == 'n':
+        if tysir.lower() == 'y':
+            gamesetup()
+        else:
+            import sys
+            input("Exiting...")
+            sys.exit()
+    else:
+        print("Invalid input, please try again.")
+        rematch()
+
+def highscore():
+    import subenc
+    hs = input('For posterity, what is your name?')
+    if len(hs) > 10:
+        print('At most 10 characters, please.')
+        highscore()
+    else:
+        from operator import itemgetter
+        scorelist = []
+        hs = hs.ljust(10)
+        t = str(turn).rjust(3, '0')
+        ninja_out = ''
+        print(scorelist)
+        with open('battleship_scores_enc.txt', 'r') as smoke:
+            ninja_in = smoke.read() # Encrypted CSV string
+            scorelist = (subenc.txtenc(ninja_in, 'd').split(','))
+            del scorelist[-1] # Delete empty string at end. Yes, do it this way.
+            scorelist.append(hs + ' ' + t) # Working list of rows
+            for line in scorelist:
+                ninja_out = ninja_out + line + ','
+        with open('battleship_scores_enc.txt', 'w') as smoke:
+            smoke.write(subenc.txtenc(ninja_out, 'e'))
+        scorelist.sort(key=itemgetter(11, 12, 13))
+        print()
+        print('Top Ten Scores')
+        for score in scorelist[0:9]:
+            print(score)
+        print()
 
 gamesetup()
+
+"""
+TO DO:
+Leave Ship.symbol as glyph related to Ship.name, easier for player to recognize.
+How can I add a sinking animation?
+If subenc() returns Type Error, do we re-write default HS list?
+"""
