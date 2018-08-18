@@ -210,7 +210,7 @@ def rematch():
             gamesetup()
         else:
             import sys
-            input("Exiting...")
+            input("Hit enter to exit.")
             sys.exit()
     else:
         print("Invalid input, please try again.")
@@ -228,7 +228,6 @@ def highscore():
         hs = hs.ljust(10)
         t = str(turn).rjust(3, '0')
         ninja_out = ''
-        print(scorelist)
         with open('battleship_scores_enc.txt', 'r') as smoke:
             ninja_in = smoke.read() # Encrypted CSV string
             scorelist = (subenc.txtenc(ninja_in, 'd').split(','))
@@ -244,6 +243,8 @@ def highscore():
         for score in scorelist[0:9]:
             print(score)
         print()
+        # Only player score is being encrypted and appended to original encrypted string
+        # Everything is still getting decrypted properly, how lol?
 
 gamesetup()
 
